@@ -1,5 +1,7 @@
+
 "use client"
 import { useState } from "react"
+import Image from "next/image"
 import { ShoppingBag, X, Plus, Minus } from "lucide-react"
 import { useCart } from "../../lib/CartContext"
 import { Button } from "./button"
@@ -67,11 +69,14 @@ export function CartDrawer() {
               <div className="space-y-4">
                 {items.map((item) => (
                   <div key={`${item.id}-${item.size}`} className="flex gap-3 border-b pb-4">
-                    <img
-                      src={formatImageUrl(item.image) || "/placeholder.svg"}
-                      alt={item.title}
-                      className="w-16 h-16 object-cover rounded"
-                    />
+                    <div className="relative w-16 h-16">
+                      <Image
+                        src={formatImageUrl(item.image) || "/placeholder.svg"}
+                        alt={item.title}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-sm">{item.title}</h3>
                       <p className="text-gray-600 text-sm">Size: {item.size}</p>

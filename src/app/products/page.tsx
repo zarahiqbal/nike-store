@@ -255,6 +255,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Heart } from "lucide-react"
 import { CartDrawer } from "../../../components/ui/cart-drawer"
 import { ProductCardSkeleton, CategorySkeleton } from "../../../components/ui/loading-skeleton"
@@ -271,35 +272,53 @@ type Product = {
   badge?: "Just In" | "Bestseller"
 }
 
+type ApiResponse = {
+  data: Record<string, unknown>[]
+}
+
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [favorites, setFavorites] = useState<Set<number>>(new Set())
   const searchParams = useSearchParams()
 
-  const { data: productsData, loading } = useApi<any>(
+  const { data: productsData, loading } = useApi<ApiResponse>(
     "https://elegant-duck-3bccb7b995.strapiapp.com/api/products?populate=*",
   )
 
   const { products, categories } = useMemo(() => {
     const rawProducts = productsData?.data || []
 
-    const mapped = rawProducts.map((p: any, index: number) => ({
-      id: p.id,
-      title: p.attributes?.title || p.title || `Nike Product ${index + 1}`,
-      price: p.attributes?.Price || p.Price || Math.floor(Math.random() * 1000) + 500,
-      slug: p.attributes?.slug || p.slug || `product-${p.id}`,
-      category:
-        p.attributes?.categories?.data?.[0]?.attributes?.name || p.categories?.[0]?.name || "Men's Road Running Shoes",
-      images: (p.attributes?.images?.data || p.images || []).map((img: any) => ({
-        url:
-          img.attributes?.formats?.medium?.url ||
-          img.attributes?.url ||
-          img.formats?.medium?.url ||
-          img.url ||
-          "/placeholder.svg?height=400&width=400",
+    const mapped = rawProducts.map((p: Record<string, unknown>, index: number) => ({
+      id: Number(p.id),
+      title: String((p.attributes as Record<string, unknown>)?.title || p.title || `Nike Product ${index + 1}`),
+      price: Number(
+        (p.attributes as Record<string, unknown>)?.Price || p.Price || Math.floor(Math.random() * 1000) + 500,
+      ),
+      slug: String((p.attributes as Record<string, unknown>)?.slug || p.slug || `product-${p.id}`),
+      category: String(
+        ((p.attributes as Record<string, unknown>)?.categories as Record<string, Record<string, unknown>[]>)?.data?.[0]
+          ?.attributes?.name ||
+          (p.categories as Array<Record<string, unknown>>)?.[0]?.name ||
+          "Men's Road Running Shoes",
+      ),
+      images: (
+        ((p.attributes as Record<string, unknown>)?.images as Record<string, Record<string, unknown>[]>)?.data ||
+        p.images ||
+        []
+      ).map((img: Record<string, unknown>) => ({
+        url: String(
+          ((img.attributes as Record<string, unknown>)?.formats as Record<string, Record<string, unknown>>)?.medium
+            ?.url ||
+            (img.attributes as Record<string, unknown>)?.url ||
+            (img.formats as Record<string, Record<string, unknown>>)?.medium?.url ||
+            img.url ||
+            "/placeholder.svg?height=400&width=400",
+        ),
       })),
-      colors: p.attributes?.colors || p.colors || Math.floor(Math.random() * 7) + 1,
-      badge: index === 1 ? "Just In" : index === 2 ? "Bestseller" : undefined,
+      colors: Number(
+        (p.attributes as Record<string, unknown>)?.colors || p.colors || Math.floor(Math.random() * 7) + 1,
+      ),
+      badge: index === 1 ? ("Just In" as const) : index === 2 ? ("Bestseller" as const) : undefined,
     }))
 
     // Extract unique categories (excluding "Trending")
@@ -327,7 +346,7 @@ export default function ProductsPage() {
   const filteredProducts = useMemo(() => {
     return selectedCategory === "all"
       ? products
-      : products.filter((p: Product) => p.category.toLowerCase() === selectedCategory.toLowerCase())
+      : products.filter((p) => p.category.toLowerCase() === selectedCategory.toLowerCase())
   }, [products, selectedCategory])
 
   const toggleFavorite = (productId: number) => {
@@ -397,7 +416,9 @@ export default function ProductsPage() {
           <div className="mt-4 text-gray-600">
             {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"} found
             {selectedCategory !== "all" && (
-              <span className="ml-1">in "{selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}"</span>
+              <span className="ml-1">
+                in &ldquo;{selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}&rdquo;
+              </span>
             )}
           </div>
         </div>
@@ -415,7 +436,7 @@ export default function ProductsPage() {
               </button>
             </div>
           ) : (
-            filteredProducts.map((product: Product) => {
+            filteredProducts.map((product) => {
               const image = product.images[0]?.url
               const isFavorite = favorites.has(product.id)
 
@@ -449,11 +470,12 @@ export default function ProductsPage() {
 
                       {/* Product Image */}
                       <Link href={`/products/${product.slug}`}>
-                        <div className="w-full h-full flex items-center justify-center p-8 cursor-pointer">
-                          <img
+                        <div className="w-full h-full flex items-center justify-center p-8 cursor-pointer relative">
+                          <Image
                             src={formatImageUrl(image || "/placeholder.svg?height=400&width=400")}
                             alt={product.title}
-                            className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            fill
+                            className="object-contain group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
                               target.src = "/placeholder.svg?height=400&width=400"

@@ -236,11 +236,13 @@
 import { useState, useMemo } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { ArrowLeft, Heart, Truck, RotateCcw } from "lucide-react"
 import { useCart } from "../../../../lib/CartContext"
 import { CartDrawer } from "../../../../components/ui/cart-drawer"
 import { Button } from "../../../../components/ui/button"
 import { useApi } from "../../../../hooks/use-api"
+
 
 type ProductDetail = {
   id: number
@@ -252,6 +254,10 @@ type ProductDetail = {
   category?: { name: string }
 }
 
+type ApiResponse = {
+  data: Record<string, unknown>[]
+}
+
 export default function ProductDetailPage() {
   const { slug } = useParams()
   const [selectedSize, setSelectedSize] = useState<string>("")
@@ -260,26 +266,33 @@ export default function ProductDetailPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const { addItem } = useCart()
 
-  const {
-    data: productData,
-    loading,
-    error,
-  } = useApi<any>(`https://elegant-duck-3bccb7b995.strapiapp.com/api/products?filters[slug][$eq]=${slug}&populate=*`)
+  const { data: productData, loading } = useApi<ApiResponse>(
+    `https://elegant-duck-3bccb7b995.strapiapp.com/api/products?filters[slug][$eq]=${slug}&populate=*`,
+  )
 
   const product = useMemo(() => {
     if (!productData?.data?.[0]) return null
 
-    const p = productData.data[0]
+    const p = productData.data[0] as Record<string, unknown>
+    const attributes = p.attributes as Record<string, unknown> | undefined
+
     return {
-      id: p.id,
-      title: p.attributes?.title || p.title,
-      description: p.attributes?.Description || p.Description || "No description available.",
-      price: p.attributes?.Price || p.Price,
-      images: (p.attributes?.images?.data || p.images || []).map((img: any) => ({
-        url: img.attributes?.url || img.url,
+      id: Number(p.id),
+      title: String(attributes?.title || p.title),
+      description: String(attributes?.Description || p.Description || "No description available."),
+      price: Number(attributes?.Price || p.Price),
+      images: (
+        ((attributes?.images as Record<string, Record<string, unknown>[]>)?.data || p.images || []) as Record<
+          string,
+          unknown
+        >[]
+      ).map((img: Record<string, unknown>) => ({
+        url: String((img.attributes as Record<string, unknown>)?.url || img.url),
       })),
-      sizes: p.attributes?.size || p.size || [],
-      category: p.attributes?.category ? { name: p.attributes.category.name } : undefined,
+      sizes: (attributes?.size || p.size || []) as { size: string; in_stock: boolean }[],
+      category: attributes?.category
+        ? { name: String((attributes.category as Record<string, unknown>).name) }
+        : undefined,
     }
   }, [productData])
 
@@ -295,7 +308,7 @@ export default function ProductDetailPage() {
       return
     }
 
-    const selectedSizeOption = product.sizes.find((s: { size: string; in_stock: boolean }) => s.size === selectedSize)
+    const selectedSizeOption = product.sizes.find((s) => s.size === selectedSize)
     if (!selectedSizeOption?.in_stock) {
       alert("This size is out of stock.")
       return
@@ -315,7 +328,7 @@ export default function ProductDetailPage() {
 
       // Show success feedback
       alert("Added to cart!")
-    } catch (error) {
+    } catch {
       alert("Failed to add to cart. Please try again.")
     } finally {
       setIsAddingToCart(false)
@@ -347,12 +360,12 @@ export default function ProductDetailPage() {
     )
   }
 
-  if (error || !product) {
+  if (!product) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-6">The product you&apos;re looking for doesn&apos;t exist.</p>
           <Link href="/products">
             <Button>Back to Products</Button>
           </Link>
@@ -385,18 +398,19 @@ export default function ProductDetailPage() {
             <div className="flex flex-col md:flex-row gap-6">
               {/* Thumbnail Images */}
               <div className="flex md:flex-col gap-2 order-2 md:order-1">
-                {product.images.map((img: { url: string }, i: number) => (
+                {product.images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setMainImageIndex(i)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors relative ${
                       mainImageIndex === i ? "border-black" : "border-transparent hover:border-gray-300"
                     }`}
                   >
-                    <img
+                    <Image
                       src={formatImageUrl(img.url) || "/placeholder.svg"}
                       alt={`${product.title} ${i + 1}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   </button>
                 ))}
@@ -405,11 +419,12 @@ export default function ProductDetailPage() {
               {/* Main Image */}
               <div className="order-1 md:order-2">
                 {product.images[mainImageIndex] && (
-                  <div className="relative">
-                    <img
+                  <div className="relative w-full max-w-[550px] h-[600px]">
+                    <Image
                       src={formatImageUrl(product.images[mainImageIndex].url) || "/placeholder.svg"}
                       alt={product.title}
-                      className="w-full max-w-[550px] h-[600px] object-cover rounded-lg"
+                      fill
+                      className="object-cover rounded-lg"
                     />
                     <button
                       onClick={() => setIsFavorite(!isFavorite)}
@@ -440,7 +455,7 @@ export default function ProductDetailPage() {
                     <button className="text-sm text-gray-600 hover:text-black underline">Size Guide</button>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {product.sizes.map((option: { size: string; in_stock: boolean }, i: number) => (
+                    {product.sizes.map((option, i) => (
                       <button
                         key={i}
                         onClick={() => setSelectedSize(option.size)}

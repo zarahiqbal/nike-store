@@ -306,11 +306,13 @@
 "use client"
 
 import { useMemo } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { Button } from "../../components/ui/button"
 import { CartDrawer } from "../../components/ui/cart-drawer"
 import { ProductCardSkeleton } from "../../components/ui/loading-skeleton"
 import { useApi } from "../../hooks/use-api"
+
 
 type Product = {
   id: number
@@ -344,7 +346,7 @@ type Category = {
 }
 
 type ApiResponse = {
-  data: unknown[]
+  data: Record<string, unknown>[]
 }
 
 export default function HomePage() {
@@ -361,23 +363,23 @@ export default function HomePage() {
     const rawCategories = categoriesData?.data || []
 
     // Process trending products
-    const trendingRawProducts = rawProducts.filter((p: unknown) => {
-      const product = p as Record<string, unknown>
+    const trendingRawProducts = rawProducts.filter((p: Record<string, unknown>) => {
+      const product = p
       const attributes = product.attributes as Record<string, unknown> | undefined
       const categoriesField = attributes?.categories || product.categories
 
-      let productCategories: unknown[] = []
+      let productCategories: Record<string, unknown>[] = []
 
       if (categoriesField && typeof categoriesField === "object") {
-        if ("data" in categoriesField && Array.isArray((categoriesField as any).data)) {
-          productCategories = (categoriesField as any).data
+        if ("data" in categoriesField && Array.isArray((categoriesField as Record<string, unknown>).data)) {
+          productCategories = (categoriesField as Record<string, Record<string, unknown>[]>).data
         } else if (Array.isArray(categoriesField)) {
-          productCategories = categoriesField
+          productCategories = categoriesField as Record<string, unknown>[]
         }
       }
 
-      return productCategories.some((cat: unknown) => {
-        const category = cat as Record<string, unknown>
+      return productCategories.some((cat: Record<string, unknown>) => {
+        const category = cat
         const categoryAttributes = category.attributes as Record<string, unknown> | undefined
         const categoryName = categoryAttributes?.name || category.name || ""
         return String(categoryName).toLowerCase() === "trending"
@@ -385,24 +387,24 @@ export default function HomePage() {
     })
 
     const trending = trendingRawProducts
-      .map((p: unknown, index: number) => {
-        const product = p as Record<string, unknown>
+      .map((p: Record<string, unknown>, index: number) => {
+        const product = p
         const attributes = product.attributes as Record<string, unknown> | undefined
 
         // Safely extract images
         const imagesField = attributes?.images || product.images
-        let imagesList: unknown[] = []
+        let imagesList: Record<string, unknown>[] = []
 
         if (imagesField && typeof imagesField === "object") {
-          if ("data" in imagesField && Array.isArray((imagesField as any).data)) {
-            imagesList = (imagesField as any).data
+          if ("data" in imagesField && Array.isArray((imagesField as Record<string, unknown>).data)) {
+            imagesList = (imagesField as Record<string, Record<string, unknown>[]>).data
           } else if (Array.isArray(imagesField)) {
-            imagesList = imagesField
+            imagesList = imagesField as Record<string, unknown>[]
           }
         }
 
-        const processedImages = imagesList.map((img: unknown) => {
-          const image = img as Record<string, unknown>
+        const processedImages = imagesList.map((img: Record<string, unknown>) => {
+          const image = img
           const imageAttributes = image.attributes as Record<string, unknown> | undefined
 
           // Safely extract image URL
@@ -428,16 +430,18 @@ export default function HomePage() {
         let categoryName = "Men's Road Running Shoes"
 
         if (categoriesField && typeof categoriesField === "object") {
-          let firstCategory: unknown = null
+          let firstCategory: Record<string, unknown> | null = null
 
-          if ("data" in categoriesField && Array.isArray((categoriesField as any).data)) {
-            firstCategory = (categoriesField as any).data[0]
+          if ("data" in categoriesField && Array.isArray((categoriesField as Record<string, unknown>).data)) {
+            const dataArray = (categoriesField as Record<string, Record<string, unknown>[]>).data
+            firstCategory = dataArray[0] || null
           } else if (Array.isArray(categoriesField)) {
-            firstCategory = categoriesField[0]
+            const categoryArray = categoriesField as Record<string, unknown>[]
+            firstCategory = categoryArray[0] || null
           }
 
           if (firstCategory) {
-            const category = firstCategory as Record<string, unknown>
+            const category = firstCategory
             const categoryAttributes = category.attributes as Record<string, unknown> | undefined
             categoryName = String(categoryAttributes?.name || category.name || categoryName)
           }
@@ -457,13 +461,13 @@ export default function HomePage() {
       .slice(0, 6)
 
     // Find special category images
-    const nikemenCategory = rawCategories.find((cat: unknown) => {
+    const nikemenCategory = rawCategories.find((cat: Record<string, unknown>) => {
       const category = cat as Category
       const categoryName = category.attributes?.name || category.name || ""
       return String(categoryName).toLowerCase() === "nikemen"
     }) as Category | undefined
 
-    const mainCategory = rawCategories.find((cat: unknown) => {
+    const mainCategory = rawCategories.find((cat: Record<string, unknown>) => {
       const category = cat as Category
       const categoryName = category.attributes?.name || category.name || ""
       return String(categoryName).toLowerCase() === "main"
@@ -481,7 +485,7 @@ export default function HomePage() {
 
     // Filter categories for display
     const filteredCategories = rawCategories
-      .filter((cat: unknown) => {
+      .filter((cat: Record<string, unknown>) => {
         const category = cat as Category
         const categoryName = category.attributes?.name || category.name || ""
         return !["trending", "nikemen", "main"].includes(String(categoryName).toLowerCase())
@@ -507,10 +511,11 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative">
         <div className="relative h-[600px] bg-gray-100">
-          <img
+          <Image
             src={formatImageUrl(heroImage) || "/placeholder.svg"}
             alt="Nike Air Max"
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement
               target.src = "/placeholder.svg?height=600&width=1200"
@@ -538,10 +543,11 @@ export default function HomePage() {
           <div className="relative group cursor-pointer">
             <Link href="/products">
               <div className="relative h-[500px] bg-gray-100 overflow-hidden rounded-lg">
-                <img
+                <Image
                   src={formatImageUrl(featuredImage) || "/placeholder.svg"}
-                  alt="Men's Collection"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  alt="Men&apos;s Collection"
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
                     target.src = "/placeholder.svg?height=500&width=600"
@@ -549,9 +555,9 @@ export default function HomePage() {
                 />
               </div>
               <div className="mt-4 text-center">
-                <h3 className="text-xl font-semibold">Men's Collection</h3>
+                <h3 className="text-xl font-semibold">Men&apos;s Collection</h3>
                 <p className="text-gray-600 mb-4">Step into comfort and style</p>
-                <Button variant="outline">Shop Men's</Button>
+                <Button variant="outline">Shop Men&apos;s</Button>
               </div>
             </Link>
           </div>
@@ -576,10 +582,11 @@ export default function HomePage() {
                   <Link key={product.id} href={`/products/${product.slug}`} className="group cursor-pointer">
                     <div className="relative h-[300px] bg-white overflow-hidden rounded-lg shadow-sm hover:shadow-md transition-shadow">
                       <div className="w-full h-full flex items-center justify-center p-8">
-                        <img
+                        <Image
                           src={formatImageUrl(image) || "/placeholder.svg"}
                           alt={product.title}
-                          className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                          fill
+                          className="object-contain group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
                             target.src = "/placeholder.svg?height=300&width=400"
@@ -625,10 +632,11 @@ export default function HomePage() {
                   className="text-center group cursor-pointer"
                 >
                   <div className="relative h-[250px] bg-gray-100 rounded-lg overflow-hidden mb-4">
-                    <img
+                    <Image
                       src={formatImageUrl(String(categoryImage)) || "/placeholder.svg"}
                       alt={String(categoryName)}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         target.src = `/placeholder.svg?height=250&width=300&text=${encodeURIComponent(String(categoryName))}`
